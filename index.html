@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>旗標訂餐系統</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #e4572e;
+      --primary-hover: #c94823;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 16px 120px;
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    /* 網址輸入列 */
+    .url-bar {
+      display: flex;
+      gap: 8px;
+      background: var(--card);
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    input, select, button { font: inherit; }
+
+    input[type="text"], input[type="url"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(228, 87, 46, .15);
+    }
+
+    .url-bar input { flex: 1; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+
+    button:hover:not(:disabled) { background: var(--primary-hover); }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .message {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #b42318;
+      min-height: 1em;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 0;
+      color: var(--muted);
+    }
+
+    .loading.show { display: flex; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 菜單卡片 */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .item-name { font-size: 17px; font-weight: 600; }
+    .item-price { color: var(--primary); font-weight: 700; white-space: nowrap; }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .row { display: flex; gap: 8px; }
+    .row .field { flex: 1; }
+    .row .field.qty { flex: 0 0 90px; }
+
+    .card-footer {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+    }
+
+    /* 底部送出列 */
+    .order-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, .04);
+    }
+
+    .order-bar-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .order-bar input { flex: 1; max-width: 280px; }
+
+    .total {
+      margin-left: auto;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .total span { color: var(--primary); }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 0;
+    }
+
+    @media (max-width: 560px) {
+      .url-bar { flex-direction: column; }
+      .order-bar-inner { flex-wrap: wrap; }
+      .order-bar input { max-width: none; flex-basis: 100%; }
+      .total { margin-left: 0; }
+      .order-bar button { margin-left: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>旗標訂餐系統</h1>
+
+    <div class="url-bar">
+      <input type="url" id="menuUrl" placeholder="請貼上菜單網址，例如：https://example.com/menu" />
+      <button id="analyzeBtn">分析菜單</button>
+    </div>
+    <div class="message" id="message"></div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div>菜單分析中，請稍候…</div>
+    </div>
+
+    <div id="menu" class="menu-grid"></div>
+    <div id="empty" class="empty">貼上菜單網址並按下「分析菜單」開始點餐</div>
+  </div>
+
+  <div class="order-bar">
+    <div class="order-bar-inner">
+      <input type="text" id="customerName" placeholder="請輸入姓名" />
+      <div class="total">合計：<span id="total">$0</span></div>
+      <button id="submitBtn">送出訂單</button>
+    </div>
+  </div>
+
+  <script>
+    // 後端 API 位置（尚未有後端時，會自動使用範例菜單資料）
+    const API_ANALYZE = '/api/analyze-menu';
+    const API_ORDER = '/api/orders';
+
+    const $ = (id) => document.getElementById(id);
+    let menuItems = [];
+
+    // 範例資料：後端未完成前用來展示畫面
+    const SAMPLE_MENU = [
+      { name: '招牌雞腿便當', price: 120, options: ['正常', '飯少', '飯多', '不要辣'] },
+      { name: '排骨便當', price: 110, options: ['正常', '飯少', '飯多'] },
+      { name: '珍珠奶茶', price: 60, options: ['正常冰', '少冰', '去冰', '熱'] },
+      { name: '牛肉麵', price: 150, options: ['紅燒', '清燉', '麵少'] },
+      { name: '蔥油餅', price: 40, options: ['原味', '加蛋', '加起司'] },
+      { name: '綠茶', price: 35, options: ['無糖', '微糖', '半糖', '全糖'] }
+    ];
+
+    async function analyzeMenu() {
+      const url = $('menuUrl').value.trim();
+      $('message').textContent = '';
+
+      if (!url) {
+        $('message').textContent = '請先貼上菜單網址';
+        return;
+      }
+      try {
+        new URL(url);
+      } catch {
+        $('message').textContent = '網址格式不正確';
+        return;
+      }
+
+      setLoading(true);
+
+      // 連不到後端（例如直接開啟 html 檔，或放在 GitHub Pages 這類靜態網站）時使用範例資料
+      const useSampleMenu = async () => {
+        await new Promise((r) => setTimeout(r, 1200));
+        setLoading(false);
+        menuItems = SAMPLE_MENU;
+        $('message').textContent = '目前沒有連線到後端，顯示範例菜單（展示模式）';
+        renderMenu();
+      };
+
+      let res;
+      try {
+        res = await fetch(API_ANALYZE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+      } catch (err) {
+        return useSampleMenu();
+      }
+      // 靜態網站沒有 API，會回 404 / 405
+      if (res.status === 404 || res.status === 405) return useSampleMenu();
+
+      try {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `分析失敗（HTTP ${res.status}）`);
+        menuItems = data.items || [];
+        if (data.warning) $('message').textContent = data.warning;
+        renderMenu();
+      } catch (err) {
+        menuItems = [];
+        $('message').textContent = err.message;
+        $('empty').style.display = 'block';
+        $('empty').textContent = '分析失敗，請確認網址後再試一次';
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function setLoading(on) {
+      $('loading').classList.toggle('show', on);
+      $('analyzeBtn').disabled = on;
+      $('analyzeBtn').textContent = on ? '分析中…' : '分析菜單';
+      if (on) {
+        $('menu').innerHTML = '';
+        $('empty').style.display = 'none';
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function renderMenu() {
+      const menu = $('menu');
+      menu.innerHTML = '';
+      $('empty').style.display = menuItems.length ? 'none' : 'block';
+      if (!menuItems.length) $('empty').textContent = '沒有分析到任何品項';
+
+      menuItems.forEach((item, i) => {
+        const options = (item.options && item.options.length ? item.options : ['無'])
+          .map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`)
+          .join('');
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-price">$${Number(item.price) || 0}</div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="opt-${i}">客製化選項</label>
+              <select id="opt-${i}">${options}</select>
+            </div>
+            <div class="field qty">
+              <label for="qty-${i}">數量</label>
+              <input type="number" id="qty-${i}" min="0" value="0" />
+            </div>
+          </div>
+          <div class="card-footer field">
+            <label for="note-${i}">備註</label>
+            <input type="text" id="note-${i}" placeholder="例如：不要香菜、少冰" />
+          </div>
+        `;
+        menu.appendChild(card);
+        card.querySelector(`#qty-${i}`).addEventListener('input', updateTotal);
+      });
+      updateTotal();
+    }
+
+    function getOrderItems() {
+      return menuItems
+        .map((item, i) => ({
+          name: item.name,
+          price: Number(item.price) || 0,
+          option: $(`opt-${i}`).value,
+          quantity: Math.max(0, parseInt($(`qty-${i}`).value, 10) || 0),
+          note: $(`note-${i}`).value.trim()
+        }))
+        .filter((o) => o.quantity > 0);
+    }
+
+    function updateTotal() {
+      const total = getOrderItems().reduce((sum, o) => sum + o.price * o.quantity, 0);
+      $('total').textContent = `$${total}`;
+    }
+
+    async function submitOrder() {
+      const name = $('customerName').value.trim();
+      if (!menuItems.length) return alert('請先分析菜單');
+      if (!name) {
+        $('customerName').focus();
+        return alert('請輸入姓名');
+      }
+      const items = getOrderItems();
+      if (!items.length) return alert('請至少選擇一個品項（數量大於 0）');
+
+      const order = { name, items, total: items.reduce((s, o) => s + o.price * o.quantity, 0) };
+
+      const lines = items.map((o) =>
+        `${o.name}（${o.option}）x${o.quantity}${o.note ? '，備註：' + o.note : ''}`
+      );
+      const summary = `姓名：${name}\n${lines.join('\n')}\n合計：$${order.total}`;
+
+      $('submitBtn').disabled = true;
+      let res;
+      try {
+        res = await fetch(API_ORDER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(order)
+        });
+      } catch (err) {
+        res = null;
+      }
+      if (!res || res.status === 404 || res.status === 405) {
+        $('submitBtn').disabled = false;
+        return alert(`【訂單預覽】\n${summary}\n\n（展示模式：沒有連線到後端，訂單未實際送出）`);
+      }
+      const data = await res.json().catch(() => ({}));
+      $('submitBtn').disabled = false;
+      if (!res.ok) return alert(data.error || '送出失敗，請再試一次');
+      alert(`訂單已送出！\n\n${summary}`);
+    }
+
+    $('analyzeBtn').addEventListener('click', analyzeMenu);
+    $('menuUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') analyzeMenu(); });
+    $('submitBtn').addEventListener('click', submitOrder);
+  </script>
+</body>
+</html>
