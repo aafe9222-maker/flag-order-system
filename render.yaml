@@ -1,0 +1,14 @@
+# Render 部署設定（Blueprint）
+# 在 Render 用「New → Blueprint」連到這個 repo，就會依照這裡的設定建立後端
+services:
+  - type: web
+    name: flag-order-system
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false # 部署時由你在 Render 畫面上自己填入，不會存在 repo 裡
